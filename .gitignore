@@ -1,5 +1,7 @@
 # Python
 .env
+commands.txt
+submission.csv
 __pycache__/
 *.pyo
 *.pyd

@@ -101,7 +101,7 @@ def run(args):
     })
     os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else ".", exist_ok=True)
     submission.to_csv(args.output, index=False)
-    print(f"✅ Submission saved: {args.output}")
+    print(f"Submission saved: {args.output}")
     print(submission.head(10))
 
 
