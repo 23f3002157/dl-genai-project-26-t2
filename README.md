@@ -91,7 +91,7 @@ dl-genai-project-26-t2/
 
 | # | Model                         | Type       | Milestone | MAP@3 | W&B Run                                                           |
 | - | ----------------------------- | ---------- | --------- | ----- | ----------------------------------------------------------------- |
-| 1 | Dummy Baseline (A B C always) | Rule-based | M0        | TBD   | [run-0](https://claude.ai/chat/280aa7ba-cc38-43c7-b50f-83bb7a634236) |
+| 1 | Dummy Baseline (A B C always) | Rule-based | M0        | TBD   |                                                                   |
 |   |                               |            |           |       |                                                                   |
 
 > All runs tracked and compared on W&B under project `23f3002157-t22026`.
