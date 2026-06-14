@@ -2,6 +2,7 @@
 .env
 commands.txt
 submission.csv
+notebooks/
 __pycache__/
 *.pyo
 *.pyd
