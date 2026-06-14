@@ -44,6 +44,7 @@ def run(args):
     # ── W&B Init ────────────────────────────────────────────
     wandb.login(key=os.environ.get("WANDB_API_KEY"))
     wandb.init(
+        entity=config["project"]["wandb_entity"],
         project=config["project"]["wandb_project"],
         name="dummy-baseline-run0",
         config={
