@@ -1,0 +1,31 @@
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.40.0
+datasets>=2.19.0
+accelerate>=0.29.0
+tokenizers>=0.19.0
+ 
+# Classical ML baseline
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+lightgbm>=4.3.0
+catboost>=1.2.0
+ 
+# Data handling
+pandas>=2.0.0
+numpy>=1.26.0
+ 
+# Experiment tracking
+wandb>=0.16.0
+ 
+# Kaggle
+kaggle>=1.8.0
+ 
+# Evaluation
+evaluate>=0.4.0
+ 
+# Utilities
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.1

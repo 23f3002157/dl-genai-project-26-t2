@@ -1,0 +1,16 @@
+project:
+  roll_no: "23f3002157"
+  wandb_project: "23f3002157-t22026"
+  kaggle_notebook: "DL-23f3002157-notebook-t22026"
+
+data:
+  train_path: "data/raw/train.csv"
+  test_path: "data/raw/test.csv"
+  processed_train: "data/processed/train_processed.csv"
+  processed_test: "data/processed/test_processed.csv"
+
+model:
+  max_length: 512
+
+training:
+  seed: 42
