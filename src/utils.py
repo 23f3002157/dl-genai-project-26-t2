@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import yaml
+import wandb
 
 
 def set_seed(seed: int = 42):
@@ -16,10 +17,6 @@ def load_config(path: str = "configs/config.yaml") -> dict:
 
 
 def map_at_3(predictions: list, labels: list) -> float:
-    """
-    predictions: list of ["A","B","C"] per sample
-    labels: list of ground truth e.g. "A"
-    """
     scores = []
     for preds, label in zip(predictions, labels):
         score = 0.0
@@ -29,3 +26,12 @@ def map_at_3(predictions: list, labels: list) -> float:
                 break
         scores.append(score)
     return float(np.mean(scores))
+
+
+def init_wandb(run_name: str, config: dict):
+    wandb.init(
+        entity=config["project"]["wandb_entity"],
+        project=config["project"]["wandb_project"],
+        name=run_name,
+        config=config,
+    )
