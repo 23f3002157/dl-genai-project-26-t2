@@ -41,7 +41,7 @@ def run(args):
     config = load_config(args.config)
     set_seed(config["training"]["seed"])
 
-    # ── W&B Init ────────────────────────────────────────────
+    # ── W&B Init 
     wandb.login(key=os.environ.get("WANDB_API_KEY"))
     wandb.init(
         entity=config["project"]["wandb_entity"],
