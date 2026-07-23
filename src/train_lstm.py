@@ -17,6 +17,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import wandb
+import pickle
 from collections import Counter
 from dotenv import load_dotenv
 from sklearn.model_selection import train_test_split
@@ -334,6 +335,9 @@ def main():
     print(f"  Vocab size       : {len(vocab)}")
     print(f"  Trainable params : {train_params:,}")
 
+    with open("models/lstm/vocab.pkl", "wb") as f:
+        pickle.dump(vocab, f)
+    print("Vocab saved: models/lstm/vocab.pkl")
     wandb.finish()
 
 
