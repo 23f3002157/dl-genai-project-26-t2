@@ -1,7 +1,8 @@
 """
 train_deberta.py
 ----------------
-Fine-tunes microsoft/deberta-v3-small on the MCQ dataset.
+Fine-tunes microsoft/deberta-v3-base on the MCQ dataset.
+Direct 5-class classification: prompt + all options as one input.
 Evaluates MAP@3, Top-1 Accuracy, Macro F1. Logs to W&B.
 Saves best checkpoint to models/deberta/
 
@@ -28,7 +29,6 @@ from transformers import (
 from torch.optim import AdamW
 from tqdm import tqdm
 
-# path fix so src.utils resolves from project root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from src.utils import map_at_3, load_config, set_seed
 
@@ -37,15 +37,15 @@ set_seed(42)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CFG = {
-    "model"                      : "microsoft/deberta-v3-small",
-    "max_length"                 : 256,
-    "batch_size"                 : 8,
-    "grad_accum_steps"           : 4,       # effective batch = 32
-    "epochs"                     : 3,
-    "lr"                         : 2e-5,
-    "weight_decay"               : 0.01,
-    "warmup_ratio"               : 0.1,
-    "patience"                   : 2,
+    "model"            : "microsoft/deberta-v3-base",
+    "max_length"       : 256,
+    "batch_size"       : 4,
+    "grad_accum_steps" : 8,
+    "epochs"           : 7,
+    "lr"               : 1e-5,
+    "weight_decay"     : 0.01,
+    "warmup_ratio"     : 0.1,
+    "patience"         : 3,
 }
 
 OPTION_COLS  = ["A", "B", "C", "D", "E"]
@@ -68,25 +68,19 @@ class MCQDataset(Dataset):
     def __getitem__(self, idx):
         row    = self.df.iloc[idx]
         prompt = str(row["prompt"])
+        opts   = " ".join([f"{c}: {str(row[c])}" for c in OPTION_COLS])
+        text   = prompt + " [SEP] " + opts
 
-        input_ids_list      = []
-        attention_mask_list = []
-
-        for col in OPTION_COLS:
-            text = prompt + " [SEP] " + str(row[col])
-            enc  = self.tokenizer(
-                text,
-                max_length=self.max_length,
-                padding="max_length",
-                truncation=True,
-                return_tensors="pt",
-            )
-            input_ids_list.append(enc["input_ids"].squeeze(0))
-            attention_mask_list.append(enc["attention_mask"].squeeze(0))
-
+        enc = self.tokenizer(
+            text,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
         sample = {
-            "input_ids"      : torch.stack(input_ids_list),       # (5, max_len)
-            "attention_mask" : torch.stack(attention_mask_list),   # (5, max_len)
+            "input_ids"      : enc["input_ids"].squeeze(0),
+            "attention_mask" : enc["attention_mask"].squeeze(0),
         }
         if not self.is_test:
             sample["labels"] = torch.tensor(
@@ -95,19 +89,13 @@ class MCQDataset(Dataset):
         return sample
 
 
-# ── Forward pass (score each option independently) ────────────────────────────
+# ── Forward ───────────────────────────────────────────────────────────────────
 def get_logits(model, batch, device):
-    input_ids      = batch["input_ids"].to(device)       # (B, 5, L)
-    attention_mask = batch["attention_mask"].to(device)  # (B, 5, L)
-    B, num_opts, L = input_ids.shape
-
-    flat_ids  = input_ids.view(B * num_opts, L)
-    flat_mask = attention_mask.view(B * num_opts, L)
-
-    outputs = model(input_ids=flat_ids, attention_mask=flat_mask)
-    # take positive class logit as option score
-    logits  = outputs.logits[:, 1].view(B, num_opts)     # (B, 5)
-    return logits
+    outputs = model(
+        input_ids      = batch["input_ids"].to(device),
+        attention_mask = batch["attention_mask"].to(device),
+    )
+    return outputs.logits    # (B, 5)
 
 
 # ── Metrics ───────────────────────────────────────────────────────────────────
@@ -132,7 +120,7 @@ def compute_metrics(all_logits, labels):
     }, top3_preds
 
 
-# ── Train one epoch ───────────────────────────────────────────────────────────
+# ── Train epoch ───────────────────────────────────────────────────────────────
 def train_epoch(model, loader, optimizer, scheduler, device, grad_accum):
     model.train()
     total_loss = 0.0
@@ -153,10 +141,16 @@ def train_epoch(model, loader, optimizer, scheduler, device, grad_accum):
 
         total_loss += loss.item() * grad_accum
 
+    if (step + 1) % grad_accum != 0:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        scheduler.step()
+        optimizer.zero_grad()
+
     return total_loss / len(loader)
 
 
-# ── Eval one epoch ────────────────────────────────────────────────────────────
+# ── Eval epoch ────────────────────────────────────────────────────────────────
 def eval_epoch(model, loader, device):
     model.eval()
     all_logits, all_labels = [], []
@@ -177,7 +171,6 @@ def main():
     print(f"Device : {DEVICE}")
     print(f"Model  : {CFG['model']}")
 
-    # ── Data ─────────────────────────────────────────────────────────────────
     df = pd.read_csv("data/raw/train.csv")
     train_df, val_df = train_test_split(
         df, test_size=0.2, random_state=42, stratify=df["answer"]
@@ -186,58 +179,44 @@ def main():
     val_df   = val_df.reset_index(drop=True)
     print(f"Train: {len(train_df)} | Val: {len(val_df)}")
 
-    # ── Tokenizer & model ────────────────────────────────────────────────────
     print("Loading DeBERTa...")
     tokenizer = AutoTokenizer.from_pretrained(CFG["model"])
     model     = AutoModelForSequenceClassification.from_pretrained(
         CFG["model"],
-        num_labels=2,                   # binary: score each option independently
+        num_labels=5,
         ignore_mismatched_sizes=True,
     ).to(DEVICE)
 
-    # ── Loaders ──────────────────────────────────────────────────────────────
     train_ds     = MCQDataset(train_df, tokenizer, CFG["max_length"])
     val_ds       = MCQDataset(val_df,   tokenizer, CFG["max_length"])
-    train_loader = DataLoader(
-        train_ds, batch_size=CFG["batch_size"], shuffle=True,  num_workers=0
-    )
-    val_loader   = DataLoader(
-        val_ds,   batch_size=CFG["batch_size"], shuffle=False, num_workers=0
-    )
+    train_loader = DataLoader(train_ds, batch_size=CFG["batch_size"], shuffle=True,  num_workers=0)
+    val_loader   = DataLoader(val_ds,   batch_size=CFG["batch_size"], shuffle=False, num_workers=0)
 
-    # ── Optimizer & scheduler ────────────────────────────────────────────────
-    optimizer    = AdamW(
-        model.parameters(),
-        lr=CFG["lr"],
-        weight_decay=CFG["weight_decay"],
-    )
+    optimizer    = AdamW(model.parameters(), lr=CFG["lr"], weight_decay=CFG["weight_decay"])
     total_steps  = (len(train_loader) // CFG["grad_accum_steps"]) * CFG["epochs"]
     warmup_steps = int(total_steps * CFG["warmup_ratio"])
     scheduler    = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=total_steps,
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
     )
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Trainable params: {total_params:,}")
 
-    # ── W&B ──────────────────────────────────────────────────────────────────
     wandb.login(key=os.environ.get("WANDB_API_KEY"))
     wandb.init(
         entity  = config["project"].get("wandb_entity"),
         project = config["project"]["wandb_project"],
-        name    = "deberta-v3-small-finetune",
+        name    = "deberta-v3-base-finetune",
         config  = {
             **CFG,
-            "train_size"       : len(train_df),
-            "val_size"         : len(val_df),
-            "trainable_params" : total_params,
-            "effective_batch"  : CFG["batch_size"] * CFG["grad_accum_steps"],
+            "train_size"      : len(train_df),
+            "val_size"        : len(val_df),
+            "trainable_params": total_params,
+            "effective_batch" : CFG["batch_size"] * CFG["grad_accum_steps"],
+            "input_format"    : "prompt [SEP] A: ... B: ... C: ... D: ... E: ...",
         }
     )
 
-    # ── Training loop ─────────────────────────────────────────────────────────
     best_map3    = 0.0
     patience_ctr = 0
     os.makedirs("models/deberta", exist_ok=True)
@@ -286,10 +265,9 @@ def main():
     wandb.summary["trainable_params"]  = total_params
     wandb.finish()
 
-    # ── Final eval ───────────────────────────────────────────────────────────
     print("\nLoading best checkpoint for final eval...")
     model = AutoModelForSequenceClassification.from_pretrained(
-        "models/deberta"
+        "models/deberta", num_labels=5,
     ).to(DEVICE)
     val_logits, val_labels = eval_epoch(model, val_loader, DEVICE)
     final_metrics, _       = compute_metrics(val_logits, val_labels)
@@ -298,29 +276,26 @@ def main():
     for k, v in final_metrics.items():
         print(f"  {k:20s}: {v}")
 
-    # ── Test submission ───────────────────────────────────────────────────────
     print("\nGenerating test submission...")
-    test_df  = pd.read_csv("data/raw/test.csv")
-    test_ds  = MCQDataset(test_df, tokenizer, CFG["max_length"], is_test=True)
-    test_loader = DataLoader(
-        test_ds, batch_size=CFG["batch_size"], shuffle=False, num_workers=0
-    )
+    test_df     = pd.read_csv("data/raw/test.csv")
+    test_ds     = MCQDataset(test_df, tokenizer, CFG["max_length"], is_test=True)
+    test_loader = DataLoader(test_ds, batch_size=CFG["batch_size"], shuffle=False, num_workers=0)
 
     model.eval()
     all_test_logits = []
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Test"):
-            logits = get_logits(model, batch, DEVICE).cpu().numpy()
+            logits = model(
+                input_ids      = batch["input_ids"].to(DEVICE),
+                attention_mask = batch["attention_mask"].to(DEVICE),
+            ).logits.cpu().numpy()
             all_test_logits.extend(logits)
 
     predictions = [
         " ".join([IDX_TO_LABEL[i] for i in np.argsort(l)[::-1][:3]])
         for l in all_test_logits
     ]
-    submission = pd.DataFrame({
-        "id"         : test_df["id"],
-        "Prediction" : predictions,
-    })
+    submission = pd.DataFrame({"id": test_df["id"], "Prediction": predictions})
     os.makedirs("outputs", exist_ok=True)
     submission.to_csv("outputs/submission_deberta.csv", index=False)
 
