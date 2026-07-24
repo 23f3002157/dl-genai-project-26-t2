@@ -38,9 +38,9 @@ set_seed(42)
 # ── Config ────────────────────────────────────────────────────────────────────
 CFG = {
     "model"            : "microsoft/deberta-v3-base",
-    "max_length"       : 256,
-    "batch_size"       : 4,
-    "grad_accum_steps" : 8,
+    "max_length"       : 128,      # reduced from 256
+    "batch_size"       : 8,        # larger batch on cpu is fine
+    "grad_accum_steps" : 4,
     "epochs"           : 7,
     "lr"               : 1e-5,
     "weight_decay"     : 0.01,
@@ -51,7 +51,14 @@ CFG = {
 OPTION_COLS  = ["A", "B", "C", "D", "E"]
 LABEL_MAP    = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 IDX_TO_LABEL = {v: k for k, v in LABEL_MAP.items()}
-DEVICE       = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+DEVICE       = torch.device("cpu")
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    CFG["model"],
+    num_labels=5,
+    ignore_mismatched_sizes=True,
+).to(DEVICE)
+model = model.float() 
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
