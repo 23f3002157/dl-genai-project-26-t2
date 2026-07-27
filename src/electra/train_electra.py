@@ -8,8 +8,8 @@ extractor here (not fine-tuned) -- that's what differentiates it from a fully
 fine-tuned pretrained model. Mirrors the from-scratch LSTM pipeline: same data
 paths, MAP@3 / Accuracy / Macro F1 metrics, W&B logging, Kaggle submission format.
 
-Location : src/train_electra_tfidf_nn.py
-Run      : python3 -m src.train_electra_tfidf_nn
+Location : src/electra/train_electra.py
+Run      : python3 -m src.electra.train_electra
 """
 
 import os
