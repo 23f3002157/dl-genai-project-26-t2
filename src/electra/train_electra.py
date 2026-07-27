@@ -44,14 +44,14 @@ SUBMISSION_PATH    = "outputs/submission_electra_tfidf_nn.csv"
 CFG = {
     "model"              : "electra-mini-tfidf-nn",
     # Swap to "microsoft/MiniLM-L12-H384-uncased" if you'd rather use MiniLM.
-    "transformer_name"   : "google/electra-small-discriminator",
+    "transformer_name"   : "microsoft/MiniLM-L12-H384-uncased",
     "max_length"         : 128,
     "tfidf_max_features" : 5000,
     "tfidf_svd_dim"      : 128,
     "hidden_dim"         : 256,
     "dropout"            : 0.3,
     "batch_size"         : 32,
-    "epochs"             : 15,
+    "epochs"             : 6,
     "lr"                 : 1e-3,
     "weight_decay"       : 1e-4,
     "patience"           : 3,
