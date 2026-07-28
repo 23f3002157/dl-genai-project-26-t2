@@ -347,7 +347,7 @@ def main():
     wandb.summary["best_val_map3"]     = best_map3
     wandb.summary["val_macro_f1"]      = val_metrics["macro_f1"]
     wandb.summary["val_top1_accuracy"] = val_metrics["top1_accuracy"]
-    wandb.summary["model_type"]        = "electra-tfidf-nn"
+    wandb.summary["model_type"]        = "electra-tfidf-nn-new"
     wandb.summary["trainable_params"]  = train_params
 
     # ── Final eval with best model ────────────────────────────────────────────
