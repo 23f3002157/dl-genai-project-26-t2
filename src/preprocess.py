@@ -1,138 +1,108 @@
 """
 preprocess.py
 -------------
-Reusable text cleaning and preprocessing pipeline.
-Used across all milestones. Import functions from here — do not duplicate logic.
+Cleans train.csv and test.csv, saves processed files to data/processed/.
+Also exports utility functions for use across other scripts.
 
-Usage:
-    from src.preprocess import clean_text, remove_stopwords, load_data
+Location : src/preprocess.py
+Run      : python3 -m src.preprocess
 """
 
+import os
+import re
 import string
 import pandas as pd
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 OPTION_COLS = ["A", "B", "C", "D", "E"]
+LABEL_MAP   = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+
+TRAIN_IN  = "data/raw/train.csv"
+TEST_IN   = "data/raw/test.csv"
+TRAIN_OUT = "data/processed/train_processed.csv"
+TEST_OUT  = "data/processed/test_processed.csv"
 
 
-# ── Data Loading ──────────────────────────────────────────────────────────────
-
-def load_data(train_path: str, test_path: str = None):
-    """Load train and optionally test CSV files."""
-    train_df = pd.read_csv(train_path)
-    print(f"Train shape : {train_df.shape}")
-    print(f"Train columns: {train_df.columns.tolist()}")
-    if test_path:
-        test_df = pd.read_csv(test_path)
-        print(f"Test shape  : {test_df.shape}")
-        return train_df, test_df
-    return train_df
-
-
-# ── Text Cleaning ─────────────────────────────────────────────────────────────
+# ── Utility functions (importable by other scripts) ───────────────────────────
 
 def clean_text(text: str) -> str:
-    """
-    Lowercase and remove standard punctuation from a string.
-    Does NOT remove stopwords — that's a separate step.
-
-    Steps:
-        1. Lowercase
-        2. Remove all characters in string.punctuation
-        3. Strip leading/trailing whitespace
-    """
-    if not isinstance(text, str):
-        return ""
-    text = text.lower()
+    text = str(text).lower()
     text = text.translate(str.maketrans("", "", string.punctuation))
-    text = text.strip()
-    return text
+    text = re.sub(r"\s+", " ", text).strip()
+    tokens = [t for t in text.split() if t not in ENGLISH_STOP_WORDS]
+    return " ".join(tokens)
 
-
-def tokenize(text: str) -> list:
-    """Split cleaned text by whitespace into tokens."""
-    return text.split()
-
-
-def remove_stopwords(tokens: list) -> list:
-    """Remove sklearn's standard English stopwords from a token list."""
-    return [t for t in tokens if t not in ENGLISH_STOP_WORDS]
-
-
-def clean_and_tokenize(text: str, remove_stops: bool = False) -> list:
-    """Full pipeline: clean → tokenize → optionally remove stopwords."""
-    cleaned = clean_text(text)
-    tokens = tokenize(cleaned)
-    if remove_stops:
-        tokens = remove_stopwords(tokens)
-    return tokens
-
-
-# ── Feature Construction ──────────────────────────────────────────────────────
 
 def get_combined_texts(df: pd.DataFrame) -> list:
-    """
-    For TF-IDF fitting: combine prompt + all 5 options per row
-    into a single flat list of strings.
-    Returns one string per cell (prompt and each option separately).
-    """
-    texts = []
-    texts.extend(df["prompt"].tolist())
+    texts = list(df["prompt"])
     for col in OPTION_COLS:
         texts.extend(df[col].tolist())
     return [str(t) for t in texts if pd.notna(t)]
 
 
-def get_row_texts(row) -> dict:
-    """
-    For a single row, return a dict of cleaned text per field.
-    Keys: 'prompt', 'A', 'B', 'C', 'D', 'E'
-    """
-    return {
-        "prompt": clean_text(str(row["prompt"])),
-        "A": clean_text(str(row["A"])),
-        "B": clean_text(str(row["B"])),
-        "C": clean_text(str(row["C"])),
-        "D": clean_text(str(row["D"])),
-        "E": clean_text(str(row["E"])),
-    }
-
-
-# ── Missing Data Handling ─────────────────────────────────────────────────────
-
 def check_missing(df: pd.DataFrame) -> pd.DataFrame:
-    """Return a summary of missing values per column."""
     missing = df.isnull().sum()
-    pct = (missing / len(df) * 100).round(2)
+    pct     = (missing / len(df) * 100).round(2)
     summary = pd.DataFrame({"missing_count": missing, "missing_pct": pct})
     return summary[summary["missing_count"] > 0]
 
 
-def fill_missing(df: pd.DataFrame) -> pd.DataFrame:
-    """Fill missing option text with empty string."""
-    df = df.copy()
-    for col in OPTION_COLS + ["prompt"]:
-        if col in df.columns:
-            df[col] = df[col].fillna("")
-    return df
+def load_data(train_path: str, test_path: str = None):
+    train_df = pd.read_csv(train_path)
+    print(f"Train shape  : {train_df.shape}")
+    if test_path:
+        test_df = pd.read_csv(test_path)
+        print(f"Test shape   : {test_df.shape}")
+        return train_df, test_df
+    return train_df
 
 
-# ── Run standalone to verify ──────────────────────────────────────────────────
+# ── Processing pipeline ───────────────────────────────────────────────────────
+
+def process(df: pd.DataFrame, is_test: bool = False) -> pd.DataFrame:
+    out = df.copy()
+
+    out["prompt_clean"] = out["prompt"].apply(clean_text)
+    for col in OPTION_COLS:
+        out[f"{col}_clean"] = out[col].apply(clean_text)
+
+    out["input_text"] = out.apply(
+        lambda r: r["prompt_clean"] + " " +
+                  " ".join([r[f"{c}_clean"] for c in OPTION_COLS]),
+        axis=1
+    )
+
+    if not is_test and "answer" in out.columns:
+        out["label"] = out["answer"].map(LABEL_MAP)
+
+    return out
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    os.makedirs("data/processed", exist_ok=True)
+
+    print("Loading data...")
+    train_df = pd.read_csv(TRAIN_IN)
+    test_df  = pd.read_csv(TEST_IN)
+    print(f"Train : {train_df.shape}")
+    print(f"Test  : {test_df.shape}")
+
+    print("\nPreprocessing...")
+    train_proc = process(train_df, is_test=False)
+    test_proc  = process(test_df,  is_test=True)
+
+    train_proc.to_csv(TRAIN_OUT, index=False)
+    test_proc.to_csv(TEST_OUT,   index=False)
+
+    print(f"\nSaved: {TRAIN_OUT}")
+    print(f"Saved: {TEST_OUT}")
+    print(f"\nColumns: {train_proc.columns.tolist()}")
+    print(f"\nSample:")
+    print(f"  Original : {train_df.iloc[0]['prompt'][:80]}")
+    print(f"  Cleaned  : {train_proc.iloc[0]['prompt_clean'][:80]}")
+
 
 if __name__ == "__main__":
-    df = load_data("data/raw/train.csv")
-
-    print("\n── Missing values ──")
-    missing = check_missing(df)
-    print(missing if len(missing) > 0 else "None")
-
-    print("\n── Sample clean_text ──")
-    sample = df["prompt"].iloc[0]
-    print(f"Original : {sample[:80]}...")
-    print(f"Cleaned  : {clean_text(sample)[:80]}...")
-
-    print("\n── Sample tokenize + stopword removal ──")
-    tokens = clean_and_tokenize(sample, remove_stops=False)
-    tokens_no_stop = clean_and_tokenize(sample, remove_stops=True)
-    print(f"Tokens (raw)     : {len(tokens)}")
-    print(f"Tokens (no stop) : {len(tokens_no_stop)}")
+    main()
