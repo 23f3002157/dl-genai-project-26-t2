@@ -41,12 +41,12 @@ set_seed(42)
 # Switch READER_MODEL to compare performance across readers.
 # All use AutoModelForMultipleChoice — no fine-tuning needed.
 
-READER_MODEL = "LIAMF-USP/roberta-large-finetuned-race"
+# READER_MODEL = "LIAMF-USP/roberta-large-finetuned-race"
 # READER_MODEL = "LIAMF-USP/roberta-large-finetuned-race"   # RoBERTa-large, RACE MCQ — strong baseline
 # READER_MODEL = "potsawee/longformer-large-4096-answering-race"  # Longformer, handles long context
 # READER_MODEL = "mrm8488/bert-large-finetuned-squadv2"     # BERT-large, SQuAD2 QA
 # READER_MODEL = "easonnie/deberta-v3-base-race"            # DeBERTa-base, RACE MCQ
-# READER_MODEL = "ALBERT/albert-xxlarge-v2"                 # ALBERT xxlarge, strong on MCQ
+READER_MODEL = "ALBERT/albert-xxlarge-v2"                 # ALBERT xxlarge, strong on MCQ
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CFG = {
