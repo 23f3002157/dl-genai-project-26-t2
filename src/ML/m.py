@@ -21,10 +21,10 @@ from sklearn.preprocessing import Normalizer
 
 def build_model(
     tfidf_max_features: int = 50000,
-    tfidf_ngram_range: tuple = (1, 2),
-    svd_components: int = 300,
+    tfidf_ngram_range: tuple = (1, 4),
+    svd_components: int = 3000,
     lr_C: float = 1.0,
-    lr_max_iter: int = 1000,
+    lr_max_iter: int = 10000,
     random_state: int = 42,
 ) -> Pipeline:
     """
@@ -49,12 +49,11 @@ def build_model(
         )),
         ("norm", Normalizer(copy=False)),
         ("clf", LogisticRegression(
-            C            = lr_C,
-            max_iter     = lr_max_iter,
-            solver       = "lbfgs",
-            multi_class  = "multinomial",
-            random_state = random_state,
-            n_jobs       = -1,
-        )),
+    C            = lr_C,
+    max_iter     = lr_max_iter,
+    solver       = "lbfgs",
+    random_state = random_state,
+    n_jobs       = -1,
+)),
     ])
     return pipeline

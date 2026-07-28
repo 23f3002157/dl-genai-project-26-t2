@@ -41,7 +41,7 @@ OPTION_COLS  = ["A", "B", "C", "D", "E"]
 LABEL_MAP    = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 IDX_TO_LABEL = {v: k for k, v in LABEL_MAP.items()}
 
-TRAIN_PATH   = "data/raw/train.csv"
+TRAIN_PATH   = "data/processed/train_processed.csv"
 TEST_PATH    = "data/raw/test.csv"
 SAVE_DIR     = "models/tfidf_lr"
 
