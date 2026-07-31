@@ -34,17 +34,17 @@ set_seed(42)
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 CFG = {
     "model"       : "lstm-from-scratch",
-    "embed_dim"   : 128,
-    "hidden_dim"  : 256,
-    "num_layers"  : 2,
-    "dropout"     : 0.3,
-    "max_length"  : 128,
-    "min_freq"    : 2,
+    "embed_dim"   : 256,       # was 128 — bigger embeddings catch more semantics
+    "hidden_dim"  : 512,       # was 256 — more capacity
+    "num_layers"  : 3,         # was 2 — deeper
+    "dropout"     : 0.4,       # was 0.3 — more regularisation at higher capacity
+    "max_length"  : 160,       # was 128 — options are long, you're truncating signal
+    "min_freq"    : 1,         # was 2 — keep all words, small dataset
     "batch_size"  : 32,
-    "epochs"      : 10,
-    "lr"          : 1e-3,
+    "epochs"      : 15,        # was 10 — give it more room
+    "lr"          : 5e-4,      # was 1e-3 — slightly lower, more stable
     "weight_decay": 1e-4,
-    "patience"    : 3,
+    "patience"    : 4,         # was 3 — don't stop too early
 }
 
 OPTION_COLS  = ["A", "B", "C", "D", "E"]
