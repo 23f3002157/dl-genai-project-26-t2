@@ -37,21 +37,21 @@ set_seed(42)
 
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 CFG = {
-    "model"       : "gru-from-scratch",
-    "embed_dim"   : 192,
-    "hidden_dim"  : 384,
-    "num_layers"  : 3,
-    "num_heads"   : 4,
-    "dropout"     : 0.35,
-    "max_length"  : 160,
-    "min_freq"    : 1,
-    "batch_size"  : 32,
-    "epochs"      : 15,
-    "lr"          : 8e-4,
-    "weight_decay": 1e-4,
-    "patience"    : 4,
-    "label_smooth": 0.1,
-    "warmup_epochs": 2,
+    "model"        : "gru-HPTT",
+    "embed_dim"    : 256,        # was 192
+    "hidden_dim"   : 512,        # was 384
+    "num_layers"   : 3,          # keep same
+    "num_heads"    : 4,          # keep same
+    "dropout"      : 0.4,        # was 0.35
+    "max_length"   : 200,        # was 160 — GRU handles longer seqs better than LSTM
+    "min_freq"     : 1,          # keep same
+    "batch_size"   : 32,         # keep same
+    "epochs"       : 20,         # was 15 — cosine schedule benefits from more epochs
+    "lr"           : 5e-4,       # was 8e-4 — slightly lower
+    "weight_decay" : 1e-4,       # keep same
+    "patience"     : 5,          # was 4 — cosine LR dips before recovering, don't stop early
+    "label_smooth" : 0.05,       # was 0.1 — GRU already has multi-head attention, less smoothing needed
+    "warmup_epochs": 3,          # was 2
 }
 
 OPTION_COLS  = ["A", "B", "C", "D", "E"]
