@@ -34,17 +34,17 @@ set_seed(42)
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 CFG = {
     "model"       : "lstm-from-scratch",
-    "embed_dim"   : 256,       # was 128 — bigger embeddings catch more semantics
-    "hidden_dim"  : 512,       # was 256 — more capacity
-    "num_layers"  : 3,         # was 2 — deeper
-    "dropout"     : 0.4,       # was 0.3 — more regularisation at higher capacity
-    "max_length"  : 160,       # was 128 — options are long, you're truncating signal
-    "min_freq"    : 1,         # was 2 — keep all words, small dataset
+    "embed_dim"   : 256,       
+    "hidden_dim"  : 512,       
+    "num_layers"  : 3,         
+    "dropout"     : 0.4,       
+    "max_length"  : 160,       
+    "min_freq"    : 1,         
     "batch_size"  : 32,
-    "epochs"      : 15,        # was 10 — give it more room
-    "lr"          : 5e-4,      # was 1e-3 — slightly lower, more stable
+    "epochs"      : 15,        
+    "lr"          : 5e-4,      
     "weight_decay": 1e-4,
-    "patience"    : 4,         # was 3 — don't stop too early
+    "patience"    : 4,         
 }
 
 OPTION_COLS  = ["A", "B", "C", "D", "E"]
@@ -279,7 +279,7 @@ def main():
             best_map3    = val_metrics["map3"]
             patience_ctr = 0
             torch.save(model.state_dict(), "models/lstm/best_model.pt")
-            print(f"  ✅ Saved best model (map3={best_map3})")
+            print(f"  Saved best model (map3={best_map3})")
         else:
             patience_ctr += 1
             if patience_ctr >= CFG["patience"]:
